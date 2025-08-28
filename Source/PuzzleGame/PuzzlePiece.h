@@ -25,6 +25,11 @@ public:
 
 	UFUNCTION(BlueprintPure, Category="Puzzle|Piece")
 	FString GetPieceID() const { return PieceID; }
+	UFUNCTION(BlueprintPure)
+	int32 GetCurrentIndex() const { return CurrentIndex; }
+	UFUNCTION(BlueprintCallable)
+	void SetCurrentIndex(int32 Index) { CurrentIndex = Index; }
+
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
@@ -47,4 +52,6 @@ protected:
 private:
 	UPROPERTY(Transient)
 	TObjectPtr<UMaterialInstanceDynamic> MID;
+	UPROPERTY(VisibleAnywhere)
+	int32 CurrentIndex = INDEX_NONE;
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PuzzleDataManager.h"
 #include "GameFramework/Actor.h"
 #include "PuzzleBoard.generated.h"
 
@@ -31,8 +32,11 @@ public:
     // If occupied: destroys existing piece, then places the new one.
     UFUNCTION(BlueprintCallable, Category="Grid|Placement")
     bool DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
+    
     bool DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
-
+    
+    void ClearPieceOccupancy(APuzzlePiece* Piece);
+    
     void BuildGridVisuals();
     void SetSlotState(int32 SlotIndex, float State);
      // Helpers
@@ -48,7 +52,10 @@ public:
     
     UPROPERTY(VisibleAnywhere)
     TArray<TWeakObjectPtr<APuzzlePiece>> Slots;
-
+    
+    UFUNCTION(BlueprintCallable, Category="Puzzle|Board")
+    TArray<FPuzzlePieceData> GetPiecesNotOnBoard() const;
+    
     TArray<int32> SlotInstanceIds;
     
 protected:
@@ -57,20 +64,15 @@ protected:
 
 private:
     // SlotIndex → the piece occupying it (or null)
-  
     
-
     UPROPERTY(EditAnywhere, Category="Grid|Visual")
     UStaticMesh* SlotMesh = nullptr;             // default: Cube
 
     UPROPERTY(EditAnywhere, Category="Grid|Visual")
     UMaterialInterface* SlotMaterial = nullptr;
 
-  
-
     void EnsureSlotArrays();
     void PlacePieceToIndex(APuzzlePiece* Piece, int32 Index); // snap + occupy
-    
     //Clamps the indexes / Also returns if given rowcol is inside the boundaries
     bool ClampCell(FIntPoint& RowCol) const;
 };

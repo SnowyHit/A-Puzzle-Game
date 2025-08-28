@@ -3,9 +3,13 @@
 
 #include "PuzzleViewerPawn.h"
 
+#include "PuzzlePlayerController.h"
+
 APuzzleViewerPawn::APuzzleViewerPawn()
 {
 	PrimaryActorTick.bCanEverTick = true;
 }
+
+
 
 	

@@ -25,4 +25,9 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override;
+
+	UFUNCTION(BlueprintNativeEvent)
+	void MoveMade();
+	UFUNCTION(BlueprintNativeEvent)
+	void PieceDeleted(bool CountAsMove = false);
 };

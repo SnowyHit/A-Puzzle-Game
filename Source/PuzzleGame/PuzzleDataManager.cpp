@@ -2,9 +2,7 @@
 
 
 #include "PuzzleDataManager.h"
-
 #include "HttpModule.h"
-#include "Blueprint/AsyncTaskDownloadImage.h"
 #include "Interfaces/IHttpResponse.h"
 
 class IHttpRequest;
@@ -18,11 +16,11 @@ void APuzzleDataManager::FillPuzzlePieceDataImageByID(const FString& PieceID, UT
 {
 	if (!Texture) return;
 
-	for (FPuzzlePieceData& P : StoredPieceDatas)
+	for (FPuzzlePieceData& Piece : StoredPieceDatas)
 	{
-		if (P.ID == PieceID)
+		if (Piece.ID == PieceID)
 		{
-			P.Texture = Texture;
+			Piece.Texture = Texture;
 			UE_LOG(LogTemp, Log, TEXT("[FillImage] Filled ID=%s with texture %s"), *PieceID, *Texture->GetName());
 			return;
 		}

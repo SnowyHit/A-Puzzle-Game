@@ -15,5 +15,4 @@ class PUZZLEGAME_API APuzzleViewerPawn : public ADefaultPawn
 
 public:
 	APuzzleViewerPawn();
-	
 };

@@ -3,8 +3,10 @@
 
 #include "PuzzleBoard.h"
 
+#include "PuzzleGameState.h"
 #include "PuzzlePiece.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 
 APuzzleBoard::APuzzleBoard()
@@ -49,8 +51,12 @@ bool APuzzleBoard::WorldToCell(const FVector& World, FIntPoint& OutRowCol) const
 
     float X = Local.X;
     float Y = Local.Y;
+   
     if (bOriginIsCenter) { X += Width*0.5f; Y += Height*0.5f; }
-
+    if (X < 0.f || Y < 0.f || X >= Width || Y >= Height)
+    {
+        return false;
+    }
     FIntPoint RowCol(FMath::FloorToInt(Y/CellSize), FMath::FloorToInt(X/CellSize));
     ClampCell(RowCol);
     OutRowCol = RowCol;
@@ -73,21 +79,21 @@ void APuzzleBoard::PlacePieceToIndex(APuzzlePiece* Piece, int32 Index)
 {
     if (!Piece || Index == INDEX_NONE) return;
 
-    // move actor to center
-    FIntPoint RowCol(Index/Cols, Index%Cols);
-    Piece->SetActorLocation(CellToWorldCenter(RowCol));
+    const FIntPoint rc(Index/Cols, Index%Cols);
+    Piece->SetActorLocation(CellToWorldCenter(rc));
 
-    // track occupancy
     EnsureSlotArrays();
-
     // remove any previous occupancy for this piece
     for (int32 i=0;i<Slots.Num();++i)
     {
         if (Slots[i].Get() == Piece) { Slots[i] = nullptr; break; }
     }
 
-    // place new occupancy
     Slots[Index] = Piece;
+    Piece->SetCurrentIndex(Index);
+
+    // (optional) visuals:
+    SetSlotState(Index, 1.f);
 }
 
 bool APuzzleBoard::DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint)
@@ -96,7 +102,15 @@ bool APuzzleBoard::DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVecto
 
     EnsureSlotArrays();
 
-    FIntPoint RowCol; WorldToCell(WorldPoint, RowCol);
+    FIntPoint RowCol;
+    if (!WorldToCell(WorldPoint, RowCol))
+    {
+        // Outside → free old slot (if any) and destroy this piece
+        ClearPieceOccupancy(DroppedPiece);
+        DroppedPiece->Destroy();
+        Cast<APuzzleGameState>(GetWorld()->GetGameState())->PieceDeleted();
+        return false;
+    }
     const int32 Index = CellToIndex(RowCol);
     if (Index == INDEX_NONE) return false;
 
@@ -105,36 +119,106 @@ bool APuzzleBoard::DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVecto
     if (Occupant && Occupant != DroppedPiece)
     {
         // Slot occupied → destroy the existing piece then replace
+        ClearPieceOccupancy(Occupant);
         Occupant->Destroy();
         Slots[Index] = nullptr; // clear before placing the new one
     }
 
     PlacePieceToIndex(DroppedPiece, Index);
     SetSlotState(Index , true);
+    
+    Cast<APuzzleGameState>(GetWorld()->GetGameState())->MoveMade();
     return true;
 }
 
 bool APuzzleBoard::DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint)
 {
     if (!DroppedPiece) return false;
-
+    const int32 from = DroppedPiece->GetCurrentIndex();
     EnsureSlotArrays();
 
-    FIntPoint RowCol; WorldToCell(WorldPoint, RowCol);
-    const int32 Index = CellToIndex(RowCol);
-    if (Index == INDEX_NONE) return false;
-
-    APuzzlePiece* Occupant = Slots[Index].Get();
-
-    if (Occupant && Occupant != DroppedPiece)
+    FIntPoint RowCol;
+    if (!WorldToCell(WorldPoint, RowCol))
     {
-        // Slot occupied → destroy the existing piece then replace
-        Occupant->Destroy();
-        Slots[Index] = nullptr; // clear before placing the new one
+        // Outside → free old slot (if any) and destroy this piece
+        ClearPieceOccupancy(DroppedPiece);
+        DroppedPiece->Destroy();
+        Cast<APuzzleGameState>(GetWorld()->GetGameState())->PieceDeleted(true);
+        return false;
+    }
+    const int32 target = CellToIndex(RowCol);
+    if (target == INDEX_NONE) return false;
+
+    // Same slot? just snap back to center
+    if (DroppedPiece->GetCurrentIndex() == target)
+    {
+        PlacePieceToIndex(DroppedPiece, target);
+        return true;
     }
 
-    PlacePieceToIndex(DroppedPiece, Index);
+    APuzzlePiece* Occupant = Slots[target].Get();
+
+    if (!Occupant)
+    {
+        // Empty → move in
+        SetSlotState(from, false);
+        PlacePieceToIndex(DroppedPiece, target);
+        Cast<APuzzleGameState>(GetWorld()->GetGameState())->MoveMade();
+        return true;
+    }
+
+    // Occupied → SWAP
+    
+    PlacePieceToIndex(Occupant, from);   // occupant to the piece's old slot
+    PlacePieceToIndex(DroppedPiece, target);
+
+    Cast<APuzzleGameState>(GetWorld()->GetGameState())->MoveMade();
     return true;
+}
+
+void APuzzleBoard::ClearPieceOccupancy(APuzzlePiece* Piece)
+{
+    if (!Piece) return;
+    EnsureSlotArrays();
+
+    for (int32 i = 0; i < Slots.Num(); ++i)
+    {
+        if (Slots[i].Get() == Piece)
+        {
+            Slots[i] = nullptr;
+            SetSlotState(i, 0.f);   // visual: mark slot empty
+            break;
+        }
+    }
+}
+
+TArray<FPuzzlePieceData> APuzzleBoard::GetPiecesNotOnBoard() const
+{
+    TArray<FPuzzlePieceData> Result;
+
+    // find the first data manager in the world
+    APuzzleDataManager* DataManager = Cast<APuzzleDataManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), APuzzleDataManager::StaticClass())
+    );
+    if (!DataManager) return Result;
+
+    for (const FPuzzlePieceData& Data : DataManager->StoredPieceDatas)
+    {
+        bool bFound = false;
+        for (const TWeakObjectPtr<APuzzlePiece>& SlotPiece : Slots)
+        {
+            if (SlotPiece.IsValid() && SlotPiece->GetPieceID() == Data.ID)
+            {
+                bFound = true;
+                break;
+            }
+        }
+        if (!bFound)
+        {
+            Result.Add(Data);
+        }
+    }
+    return Result;
 }
 
 void APuzzleBoard::BuildGridVisuals()
@@ -165,23 +249,25 @@ void APuzzleBoard::BuildGridVisuals()
     const float ScaleXY   = CellSize / 100.f;
     const float Thickness = 5.f / 100.f;
 
-    for (int32 r = 0; r < Rows; ++r)
+    for (int32 Row = 0; Row < Rows; ++Row)
     {
-        for (int32 c = 0; c < Cols; ++c)
+        for (int32 Col = 0; Col < Cols; ++Col)
         {
-            const int32 SlotIndex = r * Cols + c;
-            const FVector Center = CellToWorldCenter({ r, c }) + FVector(0,0,-8);
+            const int32 SlotIndex = Row * Cols + Col;
 
-            
-            const FTransform CubeTransform = FTransform(FQuat::Identity, Center, FVector(ScaleXY-0.4, ScaleXY-0.4, Thickness));
+            const FVector CenterWS = CellToWorldCenter({ Row, Col }) + FVector(0, 0, -8);
 
-            const int32 instanceId = SlotISM->AddInstanceWorldSpace(CubeTransform);
-            SlotInstanceIds[SlotIndex] = instanceId;
+            const FTransform InstanceTransform = FTransform(FQuat::Identity, CenterWS, FVector(ScaleXY - 0.1f, ScaleXY - 0.1f, Thickness));
 
-            SlotISM->SetCustomDataValue(instanceId, 0, 0.f, false); // state
+            const int32 InstanceId = SlotISM->AddInstance(InstanceTransform, true);
+            SlotInstanceIds[SlotIndex] = InstanceId;
+
+            // Per-instance custom data: [0]=state, [1]=hover
+            SlotISM->SetCustomDataValue(InstanceId, 0, 0.f, false);
         }
     }
-    //Ensure that it renders after all renders
+
+    // One flush at the end
     SlotISM->MarkRenderStateDirty();
 }
 

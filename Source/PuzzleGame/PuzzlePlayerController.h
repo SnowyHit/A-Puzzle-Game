@@ -21,4 +21,18 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly)
 	APuzzleBoard* Board;
+	bool bLMBPressed;
+
+	virtual void SetupInputComponent() override;
+
+	void OnLMB_Pressed();
+	void OnLMB_Released();
+
+	bool GetMouseOnBoardPlane(FVector& OutWorld) const;
+
+private:
+	UPROPERTY() APuzzlePiece* Dragged = nullptr;
+
+	UPROPERTY(EditAnywhere, Category="Drag") float DragLift = 4.f; // little Z offset while dragging
+	float BoardPlaneZ = 0.f;
 };

@@ -2,6 +2,8 @@
 
 
 #include "PuzzlePlayerController.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "Kismet/GameplayStatics.h"
 
 APuzzlePlayerController::APuzzlePlayerController()
 {
@@ -9,5 +11,17 @@ APuzzlePlayerController::APuzzlePlayerController()
 	DefaultMouseCursor = EMouseCursor::Default;
 	bEnableClickEvents = true;
 	bEnableMouseOverEvents = true;
+}
+
+
+void APuzzlePlayerController::BeginPlay()
+{
+	Super::BeginPlay();
+	Board = Cast<APuzzleBoard>(UGameplayStatics::GetActorOfClass(GetWorld(), APuzzleBoard::StaticClass()));
+}
+
+void APuzzlePlayerController::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
 }
 

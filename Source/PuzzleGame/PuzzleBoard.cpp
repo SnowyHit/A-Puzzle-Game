@@ -4,6 +4,7 @@
 #include "PuzzleBoard.h"
 
 #include "PuzzlePiece.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 
 APuzzleBoard::APuzzleBoard()
@@ -13,6 +14,13 @@ APuzzleBoard::APuzzleBoard()
     Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
     SetRootComponent(Root);
 }
+
+void APuzzleBoard::BeginPlay()
+{
+    Super::BeginPlay();
+    BuildGridVisuals();
+}
+
 
 void APuzzleBoard::EnsureSlotArrays()
 {
@@ -102,5 +110,86 @@ bool APuzzleBoard::DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVecto
     }
 
     PlacePieceToIndex(DroppedPiece, Index);
+    SetSlotState(Index , true);
     return true;
+}
+
+bool APuzzleBoard::DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint)
+{
+    if (!DroppedPiece) return false;
+
+    EnsureSlotArrays();
+
+    FIntPoint RowCol; WorldToCell(WorldPoint, RowCol);
+    const int32 Index = CellToIndex(RowCol);
+    if (Index == INDEX_NONE) return false;
+
+    APuzzlePiece* Occupant = Slots[Index].Get();
+
+    if (Occupant && Occupant != DroppedPiece)
+    {
+        // Slot occupied → destroy the existing piece then replace
+        Occupant->Destroy();
+        Slots[Index] = nullptr; // clear before placing the new one
+    }
+
+    PlacePieceToIndex(DroppedPiece, Index);
+    return true;
+}
+
+void APuzzleBoard::BuildGridVisuals()
+{
+    const int32 Count = Rows * Cols;
+
+    if (!SlotISM)
+    {
+        SlotISM = NewObject<UInstancedStaticMeshComponent>(this, TEXT("SlotISM"));
+        SlotISM->SetupAttachment(GetRootComponent());
+        SlotISM->RegisterComponent();
+    }
+
+    if (!SlotMesh)
+    {
+        static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
+        if (Cube.Succeeded()) SlotMesh = Cube.Object;
+    }
+
+    SlotISM->ClearInstances();
+    SlotISM->SetStaticMesh(SlotMesh);
+    if (SlotMaterial) SlotISM->SetMaterial(0, SlotMaterial);
+
+    Slots.SetNum(Count);
+    SlotInstanceIds.SetNum(Count);
+    SlotISM->SetNumCustomDataFloats(1);
+    // Make thin cubes as tiles
+    const float ScaleXY   = CellSize / 100.f;
+    const float Thickness = 5.f / 100.f;
+
+    for (int32 r = 0; r < Rows; ++r)
+    {
+        for (int32 c = 0; c < Cols; ++c)
+        {
+            const int32 SlotIndex = r * Cols + c;
+            const FVector Center = CellToWorldCenter({ r, c }) + FVector(0,0,-8);
+
+            
+            const FTransform CubeTransform = FTransform(FQuat::Identity, Center, FVector(ScaleXY-0.4, ScaleXY-0.4, Thickness));
+
+            const int32 instanceId = SlotISM->AddInstanceWorldSpace(CubeTransform);
+            SlotInstanceIds[SlotIndex] = instanceId;
+
+            SlotISM->SetCustomDataValue(instanceId, 0, 0.f, false); // state
+        }
+    }
+    //Ensure that it renders after all renders
+    SlotISM->MarkRenderStateDirty();
+}
+
+// ---- state ----
+void APuzzleBoard::SetSlotState(int32 SlotIndex, float State)
+{
+    if (!SlotISM || !SlotInstanceIds.IsValidIndex(SlotIndex)) return;
+    const int32 instanceId = SlotInstanceIds[SlotIndex];
+    if (instanceId < 0) return;
+    SlotISM->SetCustomDataValue(instanceId, 0, State, true);  // 0 empty, 1 occupied
 }

@@ -14,7 +14,7 @@ class PUZZLEGAME_API APuzzleBoard : public AActor
 	 GENERATED_BODY()
 public:
     APuzzleBoard();
-
+    virtual void BeginPlay() override;
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grid")
     int32 Rows = 3;
 
@@ -31,27 +31,46 @@ public:
     // If occupied: destroys existing piece, then places the new one.
     UFUNCTION(BlueprintCallable, Category="Grid|Placement")
     bool DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
+    bool DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
 
-    // Helpers
+    void BuildGridVisuals();
+    void SetSlotState(int32 SlotIndex, float State);
+     // Helpers
     UFUNCTION(BlueprintPure, Category="Grid")
     bool WorldToCell(const FVector& World, FIntPoint& OutRowCol) const;
     UFUNCTION(BlueprintPure, Category="Grid")
     FVector CellToWorldCenter(const FIntPoint& RowCol) const;
     UFUNCTION(BlueprintPure, Category="Grid")
     int32  CellToIndex(const FIntPoint& RowCol) const { return (RowCol.X>=0 && RowCol.X<Rows && RowCol.Y>=0 && RowCol.Y<Cols) ? RowCol.X*Cols+RowCol.Y : INDEX_NONE; }
+    
+    UPROPERTY(VisibleAnywhere, Category="Components")
+    UInstancedStaticMeshComponent* SlotISM = nullptr;
+    
+    UPROPERTY(VisibleAnywhere)
+    TArray<TWeakObjectPtr<APuzzlePiece>> Slots;
 
+    TArray<int32> SlotInstanceIds;
+    
 protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="Components")
     USceneComponent* Root;
 
 private:
     // SlotIndex → the piece occupying it (or null)
-    UPROPERTY(VisibleAnywhere)
-    TArray<TWeakObjectPtr<APuzzlePiece>> Slots;
+  
+    
 
-    TArray<int32> SlotInstanceIds;
+    UPROPERTY(EditAnywhere, Category="Grid|Visual")
+    UStaticMesh* SlotMesh = nullptr;             // default: Cube
 
-    void EnsureSlotArrays(); 
-    void PlacePieceToIndex(APuzzlePiece* Piece, int32 Index); // snap + occupy + remove visual
+    UPROPERTY(EditAnywhere, Category="Grid|Visual")
+    UMaterialInterface* SlotMaterial = nullptr;
+
+  
+
+    void EnsureSlotArrays();
+    void PlacePieceToIndex(APuzzlePiece* Piece, int32 Index); // snap + occupy
+    
+    //Clamps the indexes / Also returns if given rowcol is inside the boundaries
     bool ClampCell(FIntPoint& RowCol) const;
 };

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "PuzzleBoard.h"
 #include "GameFramework/PlayerController.h"
 #include "PuzzlePlayerController.generated.h"
 
@@ -15,4 +16,9 @@ class PUZZLEGAME_API APuzzlePlayerController : public APlayerController
 	GENERATED_BODY()
 public:
 	APuzzlePlayerController();
+	virtual void Tick(float DeltaSeconds) override;
+	virtual void BeginPlay() override;
+	
+	UPROPERTY(BlueprintReadOnly)
+	APuzzleBoard* Board;
 };

@@ -31,8 +31,14 @@ void APuzzleBoard::BeginPlay()
 void APuzzleBoard::EnsureSlotArrays()
 {
     const int32 Count = Rows * Cols;
-    if (Slots.Num() != Count)  Slots.SetNum(Count);
-    if (SlotInstanceIds.Num() != Count) { SlotInstanceIds.SetNum(Count); for (int32& Id : SlotInstanceIds) Id = -1; }
+    if (Slots.Num() != Count)
+    {
+        Slots.SetNum(Count);
+    }
+    if (SlotInstanceIds.Num() != Count)
+    {
+        SlotInstanceIds.SetNum(Count); for (int32& Id : SlotInstanceIds) Id = -1;
+    }
 }
 
 bool APuzzleBoard::ClampCell(FIntPoint& RowCol) const
@@ -285,6 +291,7 @@ void APuzzleBoard::BuildGridVisuals()
         SlotISM->RegisterComponent();
     }
 
+    //Try to get default Cube , If not given on editor
     if (!SlotMesh)
     {
         static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -320,11 +327,10 @@ void APuzzleBoard::BuildGridVisuals()
         }
     }
 
-    // One flush at the end
+    // One flush at the end to render ISM's and for better performance 
     SlotISM->MarkRenderStateDirty();
 }
 
-// ---- state ----
 void APuzzleBoard::SetSlotState(int32 SlotIndex, float State)
 {
     if (!SlotISM || !SlotInstanceIds.IsValidIndex(SlotIndex)) return;

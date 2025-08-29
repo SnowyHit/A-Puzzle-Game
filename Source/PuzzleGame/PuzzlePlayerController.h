@@ -21,16 +21,19 @@ public:
 	
 	UPROPERTY(BlueprintReadOnly)
 	APuzzleBoard* Board;
-	bool bLMBPressed;
 
+	//Setting Up Input :: I generally use enhanced input for those , but for this small case i intend to use the base input scheme for less complexity.
 	virtual void SetupInputComponent() override;
 
+	//To make drag operation work on pieces
 	void OnLMB_Pressed();
 	void OnLMB_Released();
 
+	//Getting mouse position on plane when the LMB_Released
 	bool GetMouseOnBoardPlane(FVector& OutWorld) const;
 
 private:
+	//Making dragging prettier
 	UPROPERTY() APuzzlePiece* Dragged = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Drag") float DragLift = 4.f; // little Z offset while dragging

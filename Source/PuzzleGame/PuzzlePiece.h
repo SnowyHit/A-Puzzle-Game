@@ -16,15 +16,17 @@ class PUZZLEGAME_API APuzzlePiece : public AActor
 public:
 	APuzzlePiece();
 
+	//Base init to get the id , display order
 	UFUNCTION(BlueprintCallable, Category="Puzzle|Piece")
 	void InitializeFromData(const FPuzzlePieceData& Data);
 
-	// Accessors
+	// Saving the data pieces that i would use.
 	UFUNCTION(BlueprintPure, Category="Puzzle|Piece")
 	int32 GetDisplayOrder() const { return DisplayOrder; }
-
 	UFUNCTION(BlueprintPure, Category="Puzzle|Piece")
 	FString GetPieceID() const { return PieceID; }
+
+	//DataPoints for Indexses onboard for easier access to data
 	UFUNCTION(BlueprintPure)
 	int32 GetCurrentIndex() const { return CurrentIndex; }
 	UFUNCTION(BlueprintCallable)

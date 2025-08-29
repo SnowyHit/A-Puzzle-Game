@@ -68,7 +68,6 @@ void APuzzlePlayerController::OnLMB_Pressed()
 void APuzzlePlayerController::OnLMB_Released()
 {
 	GetPawn()->EnableInput(this);
-	bLMBPressed = false;
 	if (!Dragged || !Board)
 	{
 		Dragged = nullptr; return;

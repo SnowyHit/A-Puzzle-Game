@@ -9,7 +9,7 @@
 /**
  * 
  */
-
+//JSON's as struct for better usability on UE
 USTRUCT(BlueprintType)
 struct FPuzzlePieceData
 {
@@ -51,7 +51,7 @@ class PUZZLEGAME_API APuzzleDataManager : public AActor
 
 public:
 	APuzzleDataManager();
-	// Base API pieces. To make it more flexible.
+	// Base API pieces. To make it more changeble.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Puzzle|API")
 	FString BaseApiUrl = TEXT("http://127.0.0.1:8080");
 

@@ -29,6 +29,9 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override;
 
+	//This is for mainly checking the game's current state, counting move counts and call an BP event when all pieces are at correct spot
+	// Calling BP events instead of c++ delegates creates less complex solutions on ui and use the power of BP's whenever you need it.
+	
 	UFUNCTION(BlueprintNativeEvent)
 	void MoveMade();
 	UFUNCTION(BlueprintNativeEvent)

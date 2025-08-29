@@ -15,8 +15,17 @@ void APuzzleGameState::BeginPlay()
 	MoveCount = 0;
 }
 
+void APuzzleGameState::AllPiecesAtCorrectSpot_Implementation()
+{
+	GameOver = true;
+}
+
 void APuzzleGameState::PieceDeleted_Implementation(bool CountAsMove)
 {
+	if (GameOver)
+	{
+		return;
+	}
 	if (CountAsMove)
 	{
 		MoveCount++;
@@ -25,11 +34,18 @@ void APuzzleGameState::PieceDeleted_Implementation(bool CountAsMove)
 
 void APuzzleGameState::MoveMade_Implementation()
 {
+	if (GameOver)
+	{
+		return;
+	}
 	MoveCount++;
 }
 
 void APuzzleGameState::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-	ElapsedPuzzleTime += DeltaSeconds;
+	if (!GameOver)
+	{
+		ElapsedPuzzleTime += DeltaSeconds;
+	}
 }

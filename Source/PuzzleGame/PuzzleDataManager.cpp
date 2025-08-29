@@ -2,6 +2,9 @@
 
 
 #include "PuzzleDataManager.h"
+
+#include <string>
+
 #include "HttpModule.h"
 #include "Interfaces/IHttpResponse.h"
 
@@ -188,11 +191,11 @@ void APuzzleDataManager::SendScore(const FString& Username, float TimeSeconds, i
 	const FString Url = BaseApiUrl + SendScorePath;
 	UE_LOG(LogTemp, Log, TEXT("[SendScore] POST %s  user=%s  time=%.2f  moves=%d"),
 		*Url, *Username, TimeSeconds, MoveCount);
-
+	FString TimeString = FString::Printf(TEXT("%.2f"), TimeSeconds);
 	// Build tiny JSON body
 	TSharedRef<FJsonObject> Obj = MakeShared<FJsonObject>();
 	Obj->SetStringField(TEXT("username"), Username);
-	Obj->SetNumberField(TEXT("time"), TimeSeconds);
+	Obj->SetStringField(TEXT("time"), TimeString);
 	Obj->SetNumberField(TEXT("move_count"), MoveCount);
 
 	FString Payload;
@@ -200,19 +203,33 @@ void APuzzleDataManager::SendScore(const FString& Username, float TimeSeconds, i
 	TSharedRef<TJsonWriter<>> Writer = TJsonWriterFactory<>::Create(&Payload);
 	FJsonSerializer::Serialize(Obj, Writer);
 	}
-
+	UE_LOG(LogTemp, Warning, TEXT("[SendScore] Payload JSON: %s"), *Payload);
+	
+	FString Pretty;
+	{
+		TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>> > PrettyWriter =
+			TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&Pretty);
+		FJsonSerializer::Serialize(Obj, PrettyWriter);
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[SendScore] Payload (pretty):\n%s"), *Pretty);
+	
+	UE_LOG(LogTemp, Log, TEXT("[SendScore] URL: %s"), *Url);
+	UE_LOG(LogTemp, Log, TEXT("[SendScore] Headers: Content-Type=application/json, Accept=application/json"));
+	UE_LOG(LogTemp, Log, TEXT("[SendScore] As cURL:\ncurl -X POST \"%s\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -d '%s'"),
+		*Url, *Payload);
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Req = FHttpModule::Get().CreateRequest();
 	Req->OnProcessRequestComplete().BindLambda([this](FHttpRequestPtr /*R*/, FHttpResponsePtr Resp, bool bOK)
 	{
 		if (!bOK || !Resp.IsValid())
 		{
-			UE_LOG(LogTemp, Error, TEXT("[RequestImages] FAILED: No response / connection failed"));
+			UE_LOG(LogTemp, Error, TEXT("[SendScore] FAILED: No response / connection failed"));
 			return;
 		}
 
 
 		UE_LOG(LogTemp, Log, TEXT("[SendScore] HTTP %d"), Resp->GetResponseCode());
-		UE_LOG(LogTemp, Verbose, TEXT("[SendScore] Body:\n%s"), *Resp->GetContentAsString());
+		UE_LOG(LogTemp, Log, TEXT("[SendScore] Body:\n%s"), *Resp->GetContentAsString());
+		FinishScreenResponse(*Resp->GetContentAsString());
 	});
 
 	Req->SetURL(Url);
@@ -222,3 +239,60 @@ void APuzzleDataManager::SendScore(const FString& Username, float TimeSeconds, i
 	Req->ProcessRequest();
 }
 
+void APuzzleDataManager::FinishScreenResponse(const FString& ResponseBody)
+{
+	if (ResponseBody.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FinishScreen] Empty body"));
+		return;
+	}
+
+	TSharedPtr<FJsonObject> Obj;
+	{
+		TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseBody);
+		if (!FJsonSerializer::Deserialize(Reader, Obj) || !Obj.IsValid())
+		{
+			UE_LOG(LogTemp, Error, TEXT("[FinishScreen] JSON parse failed. Body:\n%s"), *ResponseBody);
+			return;
+		}
+	}
+
+	// Expected fields: success(bool), message(string), id(number)
+	bool    bSuccess = false;
+	FString Message;
+	int32   Id = INDEX_NONE;
+
+	Obj->TryGetBoolField   (TEXT("success"), bSuccess);
+	Obj->TryGetStringField (TEXT("message"), Message);
+
+	// id might be number or string; handle both
+	double IdNumber = 0.0;
+	if (Obj->TryGetNumberField(TEXT("id"), IdNumber))
+	{
+		Id = static_cast<int32>(IdNumber);
+	}
+	else
+	{
+		FString IdStr;
+		if (Obj->TryGetStringField(TEXT("id"), IdStr))
+		{
+			Id = FCString::Atoi(*IdStr);
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[FinishScreen] success=%s, id=%d, message=\"%s\""),
+		bSuccess ? TEXT("true") : TEXT("false"), Id, *Message);
+	FFinishScreenResult OutResult;
+	OutResult.Id = Id;
+	OutResult.Message = Message;
+	FinishScreenResponseBP_Event(OutResult);
+	
+	if (!bSuccess)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FinishScreen] Server returned failure. Message=%s"), *Message);
+	}
+}
+
+void APuzzleDataManager::FinishScreenResponseBP_Event_Implementation(const FFinishScreenResult& OutResult)
+{
+}

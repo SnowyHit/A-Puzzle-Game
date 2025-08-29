@@ -30,6 +30,20 @@ struct FPuzzlePieceData
 	FString ImageURL;
 };
 
+USTRUCT(BlueprintType)
+struct FFinishScreenResult
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category="Puzzle|API")
+	bool bSuccess = false;
+
+	UPROPERTY(BlueprintReadOnly, Category="Puzzle|API")
+	FString Message;
+
+	UPROPERTY(BlueprintReadOnly, Category="Puzzle|API")
+	int32 Id = INDEX_NONE;
+};
 UCLASS()
 class PUZZLEGAME_API APuzzleDataManager : public AActor
 {
@@ -74,5 +88,10 @@ public:
 	/** POST /SendScore → logs result -> Updates UI With Response*/
 	UFUNCTION(BlueprintCallable, Category="Puzzle|API")
 	void SendScore(const FString& Username, float TimeSeconds, int32 MoveCount);
+	UFUNCTION()
+	void FinishScreenResponse(const FString& ResponseBody);
+
+	UFUNCTION(BlueprintNativeEvent, Category="Puzzle|API")
+	void FinishScreenResponseBP_Event(const FFinishScreenResult& OutResult);
 };
 

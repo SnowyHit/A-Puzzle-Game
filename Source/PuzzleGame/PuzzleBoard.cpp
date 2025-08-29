@@ -21,6 +21,10 @@ void APuzzleBoard::BeginPlay()
 {
     Super::BeginPlay();
     BuildGridVisuals();
+    // find the first data manager in the world
+    DataManager = Cast<APuzzleDataManager>(
+        UGameplayStatics::GetActorOfClass(GetWorld(), APuzzleDataManager::StaticClass())
+    );
 }
 
 
@@ -128,6 +132,7 @@ bool APuzzleBoard::DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVecto
     SetSlotState(Index , true);
     
     Cast<APuzzleGameState>(GetWorld()->GetGameState())->MoveMade();
+    CheckBoardCompletion();
     return true;
 }
 
@@ -173,7 +178,59 @@ bool APuzzleBoard::DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& 
     PlacePieceToIndex(DroppedPiece, target);
 
     Cast<APuzzleGameState>(GetWorld()->GetGameState())->MoveMade();
+    CheckBoardCompletion();
     return true;
+}
+
+void APuzzleBoard::CheckBoardCompletion()
+{
+    if (!DataManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[Board] CheckBoardCompletion: DataManager is null."));
+        return;
+    }
+
+    const int32 ExpectedCount = DataManager->StoredPieceDatas.Num();
+    if (ExpectedCount <= 0)
+    {
+        return; // nothing to complete
+    }
+
+    // 1) Count occupied slots
+    int32 OccupiedCount = 0;
+    for (const TWeakObjectPtr<APuzzlePiece>& SlotPiece : Slots)
+    {
+        if (SlotPiece.IsValid())
+        {
+            ++OccupiedCount;
+        }
+    }
+
+    // 2) Must match number of data items
+    if (OccupiedCount != ExpectedCount)
+    {
+        return; // board not full yet
+    }
+
+    // 3) Every piece must be at its correct index (DisplayOrder == slot index)
+    for (int32 SlotIndex = 0; SlotIndex < Slots.Num(); ++SlotIndex)
+    {
+        const TWeakObjectPtr<APuzzlePiece>& SlotPiece = Slots[SlotIndex];
+        if (!SlotPiece.IsValid())
+        {
+            return; // should not happen since counts matched, but safety
+        }
+
+        const int32 DisplayOrder = SlotPiece->GetDisplayOrder();
+        if (DisplayOrder != SlotIndex+1)
+        {
+            return; // wrong place
+        }
+    }
+    
+    //All At Correct Place
+    Cast<APuzzleGameState>(GetWorld()->GetGameState())->AllPiecesAtCorrectSpot();
+    
 }
 
 void APuzzleBoard::ClearPieceOccupancy(APuzzlePiece* Piece)
@@ -195,11 +252,7 @@ void APuzzleBoard::ClearPieceOccupancy(APuzzlePiece* Piece)
 TArray<FPuzzlePieceData> APuzzleBoard::GetPiecesNotOnBoard() const
 {
     TArray<FPuzzlePieceData> Result;
-
-    // find the first data manager in the world
-    APuzzleDataManager* DataManager = Cast<APuzzleDataManager>(
-        UGameplayStatics::GetActorOfClass(GetWorld(), APuzzleDataManager::StaticClass())
-    );
+    
     if (!DataManager) return Result;
 
     for (const FPuzzlePieceData& Data : DataManager->StoredPieceDatas)

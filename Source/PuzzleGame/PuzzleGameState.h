@@ -23,6 +23,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category="Puzzle|Stats")
 	float ElapsedPuzzleTime = 0.f;
 
+	UPROPERTY(BlueprintReadOnly, Category="Puzzle|Stats")
+	bool GameOver = false;
+
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void BeginPlay() override;
 
@@ -30,4 +33,6 @@ public:
 	void MoveMade();
 	UFUNCTION(BlueprintNativeEvent)
 	void PieceDeleted(bool CountAsMove = false);
+	UFUNCTION(BlueprintNativeEvent)
+	void AllPiecesAtCorrectSpot();
 };

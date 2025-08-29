@@ -27,13 +27,18 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Grid")
     bool bOriginIsCenter = true;
-    
-    // Called when a UI-dropped piece should be placed at a world point.
+	
+	UPROPERTY()
+    APuzzleDataManager* DataManager;
+
+     // Called when a UI-dropped piece should be placed at a world point.
     // If occupied: destroys existing piece, then places the new one.
     UFUNCTION(BlueprintCallable, Category="Grid|Placement")
     bool DropOrReplaceAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
     
     bool DropOrSwapAtWorld(APuzzlePiece* DroppedPiece, const FVector& WorldPoint);
+
+    void CheckBoardCompletion();
     
     void ClearPieceOccupancy(APuzzlePiece* Piece);
     
@@ -52,7 +57,7 @@ public:
     
     UPROPERTY(VisibleAnywhere)
     TArray<TWeakObjectPtr<APuzzlePiece>> Slots;
-    
+
     UFUNCTION(BlueprintCallable, Category="Puzzle|Board")
     TArray<FPuzzlePieceData> GetPiecesNotOnBoard() const;
     

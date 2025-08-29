@@ -5,7 +5,8 @@ A 3d puzzle game where you take images from an API
  - Builded on UE5.4.4 
  - No Plugins needed
 
-Key Components
+# Key Components
+
 PuzzleBoard – An AActor that defines the grid layout, builds tile visuals, and manages placement, replacement, or swapping of puzzle pieces within slots.
 
 PuzzlePiece – Actor representing an individual tile. It can initialize from data and uses a dynamic material to display a texture downloaded from the API.
